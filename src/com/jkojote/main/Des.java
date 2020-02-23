@@ -10,7 +10,6 @@ package com.jkojote.main;
  * It effectively means that the most significant bit
  * is on the position 0 rather than 63 (fuck) which kills readability.
  *
- * Places in which this property occurs are marked as LR (left right)
  */
 public class Des {
     private static final int[] INITIAL_PERMUTATION = {
@@ -174,8 +173,11 @@ public class Des {
     }
 
     private long f(long block32bits, long key) {
-        long block48bits = (expand(block32bits << 32) >> 16) ^ key; // LR
+        // move rightmost 32 bits to the left
+        // expand to 48 bits and move 16 bits back to the right
+        long block48bits = expand(block32bits);
 
+        block48bits = block48bits ^ key; // LR
         long b1 = (block48bits >>> 42) & MASK_6_BITS;
         long b2 = (block48bits >>> 36) & MASK_6_BITS;
         long b3 = (block48bits >>> 30) & MASK_6_BITS;
@@ -185,7 +187,7 @@ public class Des {
         long b7 = (block48bits >>> 6) & MASK_6_BITS;
         long b8 = (block48bits) & MASK_6_BITS;
 
-        long block32bit = (
+        long encryptedBlock32bits = (
             (substitute(b1, Des.S1) << 28) |
             (substitute(b2, Des.S2) << 24) |
             (substitute(b3, Des.S3) << 20) |
@@ -196,19 +198,22 @@ public class Des {
             (substitute(b8, Des.S8))
         );
 
-        return permute(block32bit << 32, Des.P) >> 32;
+        return permute32BitBlock(encryptedBlock32bits, Des.P);
     }
 
-    private long[] genKeys(long key) {
+    private long[] genKeys(long key64Bits) {
         long[] keys = new long[16];
-        key = permute(key, Des.PC1) >>> 8;
-        long c = key >>> 28;
-        long d = key & MASK_28_BITS;
+
+        // after permutation there is only 56 leftmost bits.
+        // move them to the right to make things work.
+        long key56Bits = permute(key64Bits, Des.PC1) >>> 8;
+        long c = key56Bits >>> 28;
+        long d = key56Bits & MASK_28_BITS;
 
         for (int i = 0; i < 16; i++) {
             c = lcshift28BitValue(c, Des.SHIFTS[i]);
             d = lcshift28BitValue(d, Des.SHIFTS[i]);
-            keys[i] = permute(((c << 28)| d) << 8, Des.PC2) >>> 16; // LR;
+            keys[i] = permute(((c << 28)| d) << 8, Des.PC2) >>> 16;
         }
         return keys;
     }
@@ -221,8 +226,8 @@ public class Des {
     }
 
     private long substitute(long box, int[] s) {
-        long firstBit = getBit(box, 0);
-        long lastBit = getBit(box, 5);
+        long firstBit = getBit(box, 5);
+        long lastBit = getBit(box, 0);
 
         long column = (box >>> 1) & MASK_4_BITS;
         long row = setBit(0, 1, firstBit) | setBit(0, 0, lastBit);
@@ -231,12 +236,18 @@ public class Des {
     }
 
     private long expand(long block32bits) {
+        // move rightmost 32 bits to the left
+        block32bits <<= 32;
+
+        // expand leftmost 32 bits to 48 bits
         long block48bits = 0;
         for (int i = 0; i < 48; i++) {
             long bit = getBit(block32bits, 63 - (Des.E[i] - 1)); // LR
             block48bits = setBit(block48bits, 63 - i, bit); // LR
         }
-        return block48bits;
+
+        // move leftmost 48 bits to the right
+        return block48bits >> 16;
     }
 
     private long doInitialPermutation(long block) {
@@ -245,6 +256,10 @@ public class Des {
 
     private long doFinalPermutation(long block) {
         return permute(block, Des.FINAL_PERMUTATION);
+    }
+
+    private long permute32BitBlock(long block, int[] table) {
+        return permute(block << 32, table) >> 32;
     }
 
     private long permute(long block, int[] table) {
@@ -256,15 +271,27 @@ public class Des {
         return value;
     }
 
-    private long getBit(long block, int bitIndex) {
-        return (block >>> bitIndex) & 1;
+    /*
+     * Returns bit in block at specified position.
+     * Position is a number from 0 to 63.
+     * 0  - is the position of the rightmost bit.
+     * 63 - is the position of the leftmost bit.
+     */
+    private long getBit(long block, int position) {
+        return (block >>> position) & 1;
     }
 
-    private long setBit(long block, int bitIndex, long value) {
-        if (value == 1) {
-            return block | (1L << bitIndex);
-        } else if (value == 0) {
-            return block & (~(1L << bitIndex));
+    /*
+     * Sets bit in block at specified position.
+     * Position is a number from 0 to 63.
+     * 0  - is the position of the rightmost bit.
+     * 63 - is the position of the leftmost bit.
+     */
+    private long setBit(long block, int position, long bit) {
+        if (bit == 1) {
+            return block | (1L << position);
+        } else if (bit == 0) {
+            return block & (~(1L << position));
         }
         throw new RuntimeException("fuck off");
     }
