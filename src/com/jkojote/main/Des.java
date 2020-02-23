@@ -239,15 +239,15 @@ public class Des {
         return block48bits;
     }
 
-    private static long doInitialPermutation(long block) {
+    private long doInitialPermutation(long block) {
         return permute(block, Des.INITIAL_PERMUTATION);
     }
 
-    private static long doFinalPermutation(long block) {
+    private long doFinalPermutation(long block) {
         return permute(block, Des.FINAL_PERMUTATION);
     }
 
-    private static long permute(long block, int[] table) {
+    private long permute(long block, int[] table) {
         long value = 0;
         for (int i = 0; i < table.length; i++) {
             long bit = getBit(block, 63 - (table[i] - 1)); // LR
@@ -256,11 +256,11 @@ public class Des {
         return value;
     }
 
-    private static long getBit(long block, int bitIndex) {
+    private long getBit(long block, int bitIndex) {
         return (block >>> bitIndex) & 1;
     }
 
-    private static long setBit(long block, int bitIndex, long value) {
+    private long setBit(long block, int bitIndex, long value) {
         if (value == 1) {
             return block | (1L << bitIndex);
         } else if (value == 0) {
