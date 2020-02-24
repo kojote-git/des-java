@@ -1,5 +1,7 @@
 package com.jkojote.main;
 
+import java.nio.charset.Charset;
+
 /**
  * Implementation of DES algorithm.
  *
@@ -137,10 +139,72 @@ public class Des {
 
     private static final long MASK_32_BITS = 0xffffffffL;
     private static final long MASK_28_BITS = 0xfffffffL;
+    private static final long MASK_8_BITS = 0xffL;
     private static final long MASK_6_BITS = 0x3fL;
     private static final long MASK_4_BITS = 0xfL;
+    private static final Charset CHARSET = Charset.defaultCharset();
 
-    public long encrypt(long block, long key) {
+
+    // TODO
+    public String encryptString(String plainString, long key) {
+        byte[] encryptedBytes = encryptBytes(plainString.getBytes(CHARSET), key);
+        return new String(encryptedBytes, CHARSET);
+    }
+
+    // TODO
+    public String decryptString(String encryptedString, long key) {
+        byte[] decryptedBytes = decryptBytes(encryptedString.getBytes(CHARSET), key);
+        return new String(decryptedBytes, CHARSET);
+    }
+
+    public byte[] encryptBytes(byte[] bytes, long key) {
+        return cipherBytes(bytes, key, true);
+    }
+
+    public byte[] decryptBytes(byte[] bytes, long key) {
+        return cipherBytes(bytes, key, false);
+    }
+
+    private byte[] cipherBytes(byte[] input, long key, boolean encrypt) {
+        byte[] plainBytes = alignBytes(input);
+        byte[] cipheredBytes = new byte[plainBytes.length];
+
+        for (int i = 0; i < plainBytes.length; i += 8) {
+            long plainBlock = 0;
+            for (int j = 0; j < 8; j++) {
+                if (j == 7) {
+                    plainBlock = (plainBlock | ((long) plainBytes[i + j] & MASK_8_BITS));
+                } else {
+                    plainBlock = (plainBlock | ((long) plainBytes[i + j] & MASK_8_BITS)) << 8;
+                }
+            }
+            long cipheredBlock;
+            if (encrypt) {
+                cipheredBlock = encryptBlock(plainBlock, key);
+            } else {
+                cipheredBlock = decryptBlock(plainBlock, key);
+            }
+            for (int j = 0; j < 8; j++) {
+                cipheredBytes[i + j] = (byte) ((cipheredBlock >>> (56 - j * 8)) & MASK_8_BITS);
+            }
+        }
+        return cipheredBytes;
+    }
+
+    private byte[] alignBytes(byte[] inputBytes) {
+        byte[] resultArray;
+
+        if (inputBytes.length % 8 != 0) {
+            int diff = 8 - (inputBytes.length % 8);
+            resultArray = new byte[inputBytes.length + diff];
+            System.arraycopy(inputBytes, 0, resultArray, 0, inputBytes.length);
+            return resultArray;
+        } else {
+            return inputBytes;
+        }
+    }
+
+    public long encryptBlock(long block, long key) {
         block = doInitialPermutation(block);
 
         long left = block >>> 32;
@@ -156,7 +220,7 @@ public class Des {
         return doFinalPermutation((left << 32) | right);
     }
 
-    public long decrypt(long block, long key) {
+    public long decryptBlock(long block, long key) {
         block = doInitialPermutation(block);
 
         long left = block >>> 32;
