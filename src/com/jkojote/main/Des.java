@@ -193,7 +193,7 @@ public class Des {
                 cipheredBlock = decryptBlock(plainBlock, key);
             }
             for (int j = 0; j < 8; j++) {
-                int unsignedByte = (cipheredBlock >>> (56 - j * 8) & 0xFF;
+                int unsignedByte = ((int) (cipheredBlock >>> (56 - j * 8))) & 0xFF;
                 cipheredBytes[i + j] = (byte) (unsignedByte & MASK_8_BITS);
             }
         }
