@@ -1,6 +1,8 @@
 package com.jkojote.main;
 
 import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.Base64;
 
 /**
  * Implementation of DES algorithm.
@@ -143,17 +145,21 @@ public class Des {
     private static final long MASK_6_BITS = 0x3fL;
     private static final long MASK_4_BITS = 0xfL;
     private static final Charset CHARSET = Charset.defaultCharset();
+    private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
+    private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
 
-
-    // TODO
     public String encryptString(String plainString, long key) {
         byte[] encryptedBytes = encryptBytes(plainString.getBytes(CHARSET), key);
-        return new String(encryptedBytes, CHARSET);
+        return new String(BASE64_ENCODER.encode(encryptedBytes), CHARSET);
     }
 
-    // TODO
     public String decryptString(String encryptedString, long key) {
-        byte[] decryptedBytes = decryptBytes(encryptedString.getBytes(CHARSET), key);
+        // SOME UNKNOWN MAGIC WITH BASE64 I DON'T REALLY KNOW
+        // BUT ENCRYPTION/DECRYPTION OF RAW BYTES WORKS FINE
+
+
+        byte[] decodedBytes = BASE64_DECODER.decode(encryptedString.getBytes(CHARSET));
+        byte[] decryptedBytes = decryptBytes(decodedBytes, key);
         return new String(decryptedBytes, CHARSET);
     }
 
@@ -162,20 +168,22 @@ public class Des {
     }
 
     public byte[] decryptBytes(byte[] bytes, long key) {
-        return cipherBytes(bytes, key, false);
+        byte[] decryptedBytes = cipherBytes(bytes, key, false);
+        return removeTrailingZeros(decryptedBytes);
     }
 
     private byte[] cipherBytes(byte[] input, long key, boolean encrypt) {
-        byte[] plainBytes = alignBytes(input);
+        byte[] plainBytes = padWithZeros(input);
         byte[] cipheredBytes = new byte[plainBytes.length];
 
         for (int i = 0; i < plainBytes.length; i += 8) {
             long plainBlock = 0;
             for (int j = 0; j < 8; j++) {
+                int unsignedByte = plainBytes[i + j] & 0xFF;
                 if (j == 7) {
-                    plainBlock = (plainBlock | ((long) plainBytes[i + j] & MASK_8_BITS));
+                    plainBlock = (plainBlock | (unsignedByte & MASK_8_BITS));
                 } else {
-                    plainBlock = (plainBlock | ((long) plainBytes[i + j] & MASK_8_BITS)) << 8;
+                    plainBlock = (plainBlock | (unsignedByte & MASK_8_BITS)) << 8;
                 }
             }
             long cipheredBlock;
@@ -185,13 +193,24 @@ public class Des {
                 cipheredBlock = decryptBlock(plainBlock, key);
             }
             for (int j = 0; j < 8; j++) {
-                cipheredBytes[i + j] = (byte) ((cipheredBlock >>> (56 - j * 8)) & MASK_8_BITS);
+                int unsignedByte = (cipheredBlock >>> (56 - j * 8) & 0xFF;
+                cipheredBytes[i + j] = (byte) (unsignedByte & MASK_8_BITS);
             }
         }
         return cipheredBytes;
     }
 
-    private byte[] alignBytes(byte[] inputBytes) {
+    private byte[] removeTrailingZeros(byte[] bytes) {
+        int newLength = bytes.length;
+        for (; newLength > 0; newLength--) {
+            if (bytes[newLength - 1] != 0) {
+                break;
+            }
+        }
+        return Arrays.copyOf(bytes, newLength);
+    }
+
+    private byte[] padWithZeros(byte[] inputBytes) {
         byte[] resultArray;
 
         if (inputBytes.length % 8 != 0) {
@@ -311,7 +330,7 @@ public class Des {
         }
 
         // move leftmost 48 bits to the right
-        return block48bits >> 16;
+        return block48bits >>> 16;
     }
 
     private long doInitialPermutation(long block) {
@@ -323,7 +342,7 @@ public class Des {
     }
 
     private long permute32BitBlock(long block, int[] table) {
-        return permute(block << 32, table) >> 32;
+        return permute(block << 32, table) >>> 32;
     }
 
     private long permute(long block, int[] table) {
