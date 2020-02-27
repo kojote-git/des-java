@@ -1,6 +1,7 @@
 package com.jkojote.main;
 
 import java.nio.charset.Charset;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 
@@ -139,6 +140,38 @@ public class Des {
     };
     private static final int[] SHIFTS = { 1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1 };
 
+    private static final long[] WEAK_KEYS = {
+        0x0101010101010101L,
+        0xFEFEFEFEFEFEFEFEL,
+        0xE0E0E0E0F1F1F1F1L,
+        0x1F1F1F1F0E0E0E0EL,
+
+        0x0000000000000000L,
+        0xFFFFFFFFFFFFFFFFL,
+        0xE1E1E1E1F0F0F0F0L,
+        0x1E1E1E1E0F0F0F0FL,
+
+        // semi-weak keys
+
+        0x011F011F010E010EL,
+        0x1F011F010E010E01L,
+
+        0x01E001E001F101F1L,
+        0xE001E001F101F101L,
+
+        0x01FE01FE01FE01FEL,
+        0xFE01FE01FE01FE01L,
+
+        0x1FE01FE00EF10EF1L,
+        0xE01FE01FF10EF10EL,
+
+        0x1FFE1FFE0EFE0EFEL,
+        0xFE1FFE1FFE0EFE0EL,
+
+        0xE0FEE0FEF1FEF1FEL,
+        0xFEE0FEE0FEF1FEF1L
+    };
+
     private static final long MASK_32_BITS = 0xffffffffL;
     private static final long MASK_28_BITS = 0xfffffffL;
     private static final long MASK_8_BITS = 0xffL;
@@ -147,6 +180,26 @@ public class Des {
     private static final Charset CHARSET = Charset.defaultCharset();
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    public long nextKey() {
+        while (true) {
+            long key = SECURE_RANDOM.nextLong();
+
+            if (!keyIsWeak(key)) {
+                return key;
+            }
+        }
+    }
+
+    private boolean keyIsWeak(long key) {
+        for (long weakKey : WEAK_KEYS) {
+            if (key == weakKey) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public String encryptString(String plainString, long key) {
         byte[] encryptedBytes = encryptBytes(plainString.getBytes(CHARSET), key);

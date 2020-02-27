@@ -1,25 +1,27 @@
 package com.jkojote.main;
 
-import java.nio.charset.Charset;
-import java.util.Arrays;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         var des = new Des();
-        var key = 0x133457799BBCDFF1L;
-//        var block = 0x0123456789ABCDEFL;
-//        var block = 0xf0000000;
-        var string = "I should have known";
-        var bytes = string.getBytes(Charset.defaultCharset());
-//        var encrypted = des.encryptBytes(bytes, key);
-//        var decrypted = des.decryptBytes(encrypted, key);
-//		var encrypted = des.encryptBlock(block, key);
-//		var decrypted = des.decryptBlock(encrypted, key);
-		var encrypted = des.encryptString(string, key);
-		var decrypted = des.decryptString(encrypted, key);
+        var reader = new BufferedReader(new InputStreamReader(System.in));
 
-//        System.out.println(Arrays.equals(decrypted, bytes));
-        System.out.println(decrypted.equals(string));
-//        System.out.println(block == decrypted);
+        while (true) {
+            System.out.print("Write a message to encrypt: ");
+            var plainString = reader.readLine();
+            var key = des.nextKey();
+            var encryptedMessage = des.encryptString(plainString, key);
+            var decryptedMessage = des.decryptString(encryptedMessage, key);
+
+            System.out.println("Key: 0x" + Long.toHexString(key).toUpperCase());
+            System.out.println("Encrypted message: " + encryptedMessage);
+            System.out.println("Decrypted message: " + decryptedMessage);
+            System.out.println("Initial message  : " + plainString);
+            System.out.println();
+        }
+
     }
 }
