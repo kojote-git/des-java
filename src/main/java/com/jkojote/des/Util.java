@@ -1,4 +1,4 @@
-package com.jkojote.main;
+package com.jkojote.des;
 
 public final class Util {
 

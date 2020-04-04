@@ -1,4 +1,4 @@
-package com.jkojote.main;
+package com.jkojote.des;
 
 import java.io.BufferedReader;
 import java.io.IOException;
